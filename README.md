@@ -210,4 +210,4 @@ The ridge-based regression of the first 10 expression PCs on age, sex, pathologi
 
 ## Author
 
-Amandeep Singh — STAT 662, George Mason University
+Amandeep Singh
