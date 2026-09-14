@@ -1,0 +1,601 @@
+\documentclass[12pt]{article}
+
+% --- Encoding / fonts ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+% --- Language ---
+\usepackage[greek,english]{babel}
+\usepackage{alphabeta}
+
+% --- Math / symbols ---
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{bm}
+
+% --- Tables / figures ---
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{wrapfig}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{adjustbox}
+\usepackage{array}
+\usepackage{multirow}
+
+% --- Page layout ---
+\usepackage[top=1in, bottom=1in, left=0.5in, right=0.5in]{geometry}
+\linespread{1.06}
+\setlength{\parskip}{8pt plus2pt minus2pt}
+\widowpenalty 10000
+\clubpenalty 10000
+
+% --- Misc ---
+\newcommand{\eat}[1]{}
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+\usepackage[official]{eurosym}
+\usepackage{lipsum}
+\usepackage{cite}
+\usepackage{lastpage}
+\usepackage{fancyhdr}
+
+% --- Lists ---
+\usepackage{enumitem}
+\setlist{nolistsep,noitemsep}
+
+% --- Section spacing ---
+\usepackage{titlesec}
+\titlespacing{\section}{0pt}{\parskip}{0.3\parskip}
+\titlespacing{\subsection}{0pt}{\parskip}{0.2\parskip}
+\titlespacing{\subsubsection}{0pt}{\parskip}{0.15\parskip}
+
+% --- Colors / boxes / code ---
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{listings}
+
+\definecolor{codebg}{RGB}{245,245,245}
+\definecolor{codeframe}{RGB}{220,220,220}
+\definecolor{codegreen}{RGB}{0,140,0}
+\definecolor{codepurple}{RGB}{120,0,180}
+\definecolor{codered}{RGB}{180,30,30}
+\definecolor{codenum}{RGB}{120,120,120}
+\definecolor{myblue}{RGB}{30,70,140}
+\definecolor{mygreen}{RGB}{20,110,70}
+\definecolor{myred}{RGB}{150,40,40}
+\definecolor{mygold}{RGB}{180,120,20}
+\definecolor{lightblue}{RGB}{235,243,255}
+\definecolor{lightgreen}{RGB}{235,250,240}
+\definecolor{lightred}{RGB}{255,240,240}
+\definecolor{lightyellow}{RGB}{255,250,235}
+
+% --- Section heading style ---
+\titleformat{\section}
+  {\Large\bfseries\color{myblue}}
+  {\thesection}{0.6em}{}
+
+\titleformat{\subsection}
+  {\large\bfseries\color{mygreen}}
+  {\thesubsection}{0.6em}{}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{myred}}
+  {\thesubsubsection}{0.6em}{}
+
+% ---------- Boxes ----------
+\newtcolorbox{importantbox}{
+  colback=lightyellow,
+  colframe=mygold,
+  boxrule=0.8pt,
+  arc=2mm,
+  left=2mm,right=2mm,top=1mm,bottom=1mm
+}
+
+\newtcolorbox{defbox}{
+  colback=lightblue,
+  colframe=myblue,
+  boxrule=0.8pt,
+  arc=2mm,
+  left=2mm,right=2mm,top=1mm,bottom=1mm
+}
+
+\newtcolorbox{keybox}{
+  colback=lightgreen,
+  colframe=mygreen,
+  boxrule=0.8pt,
+  arc=2mm,
+  left=2mm,right=2mm,top=1mm,bottom=1mm
+}
+
+\newtcolorbox{warningbox}{
+  colback=lightred,
+  colframe=myred,
+  boxrule=0.8pt,
+  arc=2mm,
+  left=2mm,right=2mm,top=1mm,bottom=1mm
+}
+
+% ---------- Commands ----------
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\IID}{\stackrel{\text{i.i.d.}}{\sim}}
+\newcommand{\NIID}{\stackrel{\text{NIID}}{\sim}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\B}{\mathcal{B}}
+\newcommand{\PP}{\mathcal{P}}
+\newcommand{\1}{\mathbf{1}}
+\newcommand{\lecturetitle}[2]{%
+  {\Huge\bfseries\color{myblue}#1\par}
+  \vspace{0.3cm}
+  {\LARGE\bfseries\color{mygreen}#2\par}
+}
+
+\newcommand{\studentname}{Amandeep Singh}
+\newcommand{\projecttitle}{Integrated Multivariate Analysis of TCGA Pan-Cancer Transcriptomic Data}
+\newcommand{\projectsubtitle}{A STAT 662 proposal using high-dimensional RNA expression and clinical outcomes}
+
+% ---------- Listings ----------
+\lstdefinestyle{mystyle}{
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  framesep=6pt,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codepurple}\bfseries,
+  commentstyle=\color{codegreen}\itshape,
+  stringstyle=\color{codered},
+  numbers=left,
+  numberstyle=\tiny\color{codenum},
+  numbersep=8pt,
+  breaklines=true,
+  breakatwhitespace=true,
+  showstringspaces=false,
+  showspaces=false,
+  showtabs=false,
+  tabsize=2,
+  upquote=true,
+  aboveskip=10pt,
+  belowskip=10pt,
+  xleftmargin=0.02\linewidth,
+  xrightmargin=0.02\linewidth
+}
+
+\lstnewenvironment{pycode}[1][]{
+  \lstset{style=mystyle, language=Python, #1}
+}{}
+
+\lstnewenvironment{code}[1][]{
+  \lstset{style=mystyle, #1}
+}{}
+
+% --- Header / footer ---
+\pagestyle{fancy}
+\fancyhf{}
+\setlength{\headheight}{15pt}
+\fancyhead[L]{STAT 662 Project Proposal}
+\fancyhead[R]{TCGA Pan-Cancer Study}
+\fancyfoot[C]{\thepage~of~\pageref{LastPage}}
+
+% --- Hyperref should be last ---
+\usepackage[
+  hidelinks,
+  pdftitle={Integrated Multivariate Analysis of TCGA Pan-Cancer Transcriptomic Data},
+  pdfauthor={Amandeep Singh}
+]{hyperref}
+
+\usepackage{tikz}
+\usetikzlibrary{calc}
+
+\begin{document}
+
+%===========================================================
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+\thispagestyle{empty}
+
+\begin{tikzpicture}[remember picture,overlay]
+    \fill[white] (current page.south west) rectangle (current page.north east);
+    \fill[mygreen] (current page.north west) rectangle ($(current page.north east)+(0,-1.8cm)$);
+    \fill[myblue] (current page.south west) rectangle ($(current page.south east)+(0,1.2cm)$);
+    \fill[mygold] ($(current page.north west)+(0,-1.8cm)$) rectangle ($(current page.north east)+(0,-2.0cm)$);
+    \draw[line width=1.2pt, color=mygreen!60]
+        ($(current page.south west)+(0.8cm,0.8cm)$)
+        rectangle
+        ($(current page.north east)+(-0.8cm,-0.8cm)$);
+\end{tikzpicture}
+
+\vspace*{1.4cm}
+
+\begin{center}
+
+    {\Large\bfseries\color{white}GEORGE MASON UNIVERSITY}
+
+    \vspace{1.8cm}
+
+    \IfFileExists{GMU Logo.jpg}{
+      \includegraphics[width=0.22\textwidth]{GMU Logo.jpg}
+      \vspace{1.2cm}
+    }{
+      \vspace{1.2cm}
+    }
+
+    {\color{mygreen}\rule{0.75\textwidth}{1.2pt}}
+
+    \vspace{0.6cm}
+
+    \lecturetitle
+    {\projecttitle}
+    {\projectsubtitle}
+
+    \vspace{0.6cm}
+
+    {\color{mygold}\rule{0.55\textwidth}{0.9pt}}
+
+    \vspace{1.2cm}
+
+    \begin{tcolorbox}[
+        width=0.84\textwidth,
+        colback=lightblue,
+        colframe=myblue!70,
+        boxrule=0.8pt,
+        arc=2mm,
+        left=4mm,right=4mm,top=3mm,bottom=3mm
+    ]
+    \centering
+    {\large\textbf{\projecttitle}}\\[0.2cm]
+    {\normalsize\textit{\projectsubtitle}}\\[0.4cm]
+
+    \begin{tabular}{>{\bfseries}r @{\hspace{0.8em}} l}
+        Student: & \studentname \\[0.25cm]
+        Course: & STAT 662 \\[0.25cm]
+        Topic Area: & Multivariate Analysis and Statistical Learning \\[0.25cm]
+        Department: & Department of Statistics \\[0.25cm]
+        Institution: & George Mason University \\[0.25cm]
+        Dataset: & TCGA PanCanAtlas open-access RNA and clinical data \\[0.25cm]
+        Date: & \today
+    \end{tabular}
+    \end{tcolorbox}
+
+    \vfill
+
+    {\large\itshape\color{black!70}
+    Proposal for a research-grade multivariate analysis project spanning dimension reduction, covariance estimation, classification, and clustering\/}
+
+    \vspace{0.9cm}
+
+\end{center}
+\end{titlepage}
+
+\hypersetup{pageanchor=true}
+\setcounter{page}{1}
+\setcounter{tocdepth}{1}
+\tableofcontents
+\newpage
+
+%===========================================================
+\section{Project Description}
+
+This project proposes a large-scale multivariate analysis of \emph{The Cancer Genome Atlas (TCGA) PanCanAtlas} RNA expression and clinical follow-up data. The central dataset already downloaded for this project contains a gene-expression matrix with \(n=11{,}069\) sample profiles and \(p=20{,}531\) gene features, together with a clinical follow-up table containing \(10{,}956\) records. After restricting the primary analysis to one representative tumor-derived profile per patient, each retained sample may be viewed as a high-dimensional random vector
+\[
+X_i \in \R^{20531},
+\]
+and the scientific questions require methods for dimension reduction, dependence modeling, and supervised and unsupervised learning.
+
+The primary objective is to study whether the global structure of pan-cancer transcriptomic data can be recovered and predicted using a common multivariate feature pipeline. The main supervised task will be multiclass cancer-type classification, and the main unsupervised task will be principal-component analysis followed by clustering of the resulting low-dimensional representation. Covariance estimation, sparse inverse-covariance modeling, and multivariate regression will be used as supporting analyses to interpret dependence structure and relate latent transcriptomic variation to clinical covariates.
+
+\begin{importantbox}
+\textbf{Working project title.}
+\emph{Integrated Multivariate Analysis of TCGA Pan-Cancer Transcriptomic Data: From Covariance Structure to Classification and Clustering.}
+\end{importantbox}
+
+%===========================================================
+\section{Motivation and Scientific Basis}
+
+TCGA is one of the most widely used public cancer genomics resources and provides a rich example of genuinely high-dimensional multivariate data. The TCGA pan-cancer framework compares tumors across \(33\) cancer types and combines molecular and clinical information in a form suitable for statistical learning and multivariate inference~\cite{TCGAPanCanAtlas,GDCPanCan}.
+
+Several features make this dataset statistically useful:
+\begin{enumerate}
+    \item the data are large enough to make naive multivariate methods fail or become unstable,
+    \item the biological heterogeneity creates meaningful structure for dimension reduction and clustering,
+    \item the clinical and cancer-type labels enable supervised prediction tasks.
+\end{enumerate}
+
+Because each observation is a very high-dimensional expression profile, the project directly engages with phenomena such as concentration, instability of the sample covariance matrix, the need for regularization, and the limits of classical low-dimensional intuition. In many within-cancer analyses, \(p \gg n\) still holds even though the full PanCanAtlas cohort is large.
+
+\begin{keybox}
+\textbf{Main idea.}
+The project will treat TCGA as a single integrated platform for studying how multivariate structure discovery and predictive modeling interact in high dimensions.
+\end{keybox}
+
+%===========================================================
+\section{Research Questions}
+
+The project will be organized around the following questions:
+
+\begin{enumerate}
+    \item What global structure is visible in the pan-cancer gene-expression matrix after a fixed preprocessing and dimension-reduction pipeline?
+    \item How accurately can cancer type be predicted from transcriptomic features using linear, kernel, tree-based, and neural-network classifiers?
+    \item To what extent do PCA and clustering recover known cancer groupings, and how does that unsupervised structure compare with supervised classification performance?
+    \item How do shrinkage covariance estimation and sparse inverse-covariance modeling characterize the dependence structure underlying the dominant transcriptomic patterns?
+\end{enumerate}
+
+The analysis will therefore be organized around one primary prediction problem and one primary structure-discovery problem, with the remaining components used to strengthen interpretation rather than expand scope.
+
+%===========================================================
+\section{Methodological Plan}
+
+\subsection{Data sources and variable construction}
+
+The project will use the official open-access TCGA PanCanAtlas files downloaded from the NCI Genomic Data Commons:
+\begin{enumerate}
+    \item the pan-cancer RNA expression matrix file\\
+    \path{EBPlusPlusAdjustPANCAN_IlluminaHiSeq_RNASeqV2.geneExp.tsv},
+    \item the clinical follow-up file\\
+    \path{clinical_PANCAN_patient_with_followup.tsv},
+    \item the curated TCGA-CDR outcome file\\
+    \path{TCGA-CDR-SupplementalTableS1.xlsx}.
+\end{enumerate}
+
+The primary unit of analysis will be the tumor sample profile, with patient-level TCGA barcodes used to enforce one representative tumor-derived profile per patient in the main analysis set. The main response variable will be cancer type, using harmonized TCGA disease acronyms from the PanCanAtlas/CDR metadata. Clinical covariates such as age at diagnosis, sex, and selected stage-related variables will be used in secondary regression analyses when completeness permits.
+
+\subsection{Preprocessing strategy}
+
+Because the raw expression matrix is extremely high-dimensional, the first stage will focus on careful preprocessing:
+\begin{enumerate}
+    \item align sample identifiers across RNA and clinical tables,
+    \item exclude solid-tissue normal profiles and retain tumor-derived profiles only for the main cancer-type analysis,
+    \item when multiple tumor profiles are available for the same patient, retain the primary solid tumor profile when available and otherwise retain one representative tumor profile according to a fixed rule,
+    \item remove duplicated or inconsistent records,
+    \item inspect the expression scale and apply a monotone transformation only if required,
+    \item standardize gene features to zero mean and unit variance,
+    \item remove genes with negligible variability,
+    \item define a primary analysis set consisting of the top \(2{,}000\) most variable genes,
+    \item define a smaller subset, such as the top \(500\) most variable genes, for sparse inverse-covariance estimation.
+\end{enumerate}
+
+The top-\(2{,}000\)-gene representation will be used throughout the main PCA, clustering, and classification analyses so that method comparisons are made on a common feature space rather than on changing preprocessing choices. In the downloaded TCGA matrix, sample-type codes indicate a mixture of tumor and normal profiles, so this filtering step is necessary before any pan-cancer classification analysis.
+
+\subsection{Multivariate framework}
+
+Let \(X_i \in \R^p\) denote the gene-expression vector for retained sample \(i\), and let \(C_i\) denote its cancer-type label. A more realistic starting point is the class-conditional model
+\[
+X_i \mid C_i = c \sim F_c,
+\]
+where the pooled transcriptomic distribution is a mixture over cancer types rather than a single common \(F\). Independence across retained samples is a reasonable working approximation, but identical distribution is only expected within a fixed cancer class or a deliberately restricted subgroup analysis. The multivariate mean vector
+\[
+\mu = \E(X_i)
+\]
+and covariance matrix
+\[
+\Sigma = \Var(X_i)
+\]
+will be central objects of study, but direct unregularized estimation is not reliable in high dimensions. This motivates a pipeline based on shrinkage, dimension reduction, and sparse dependence modeling.
+
+\subsection{Dimension reduction and PCA}
+
+Principal component analysis will be the first major tool. The project will:
+\begin{enumerate}
+    \item compute principal components after centering and scaling,
+    \item examine explained-variance patterns,
+    \item visualize samples in the leading PC subspaces,
+    \item assess separation of major cancer groups in the first several PC scores,
+    \item use the leading PCs as inputs for clustering and as reduced features for supervised learning.
+\end{enumerate}
+
+Because PCA is driven by the covariance structure, this stage also provides a direct bridge to covariance estimation. Kernel PCA will be treated as an optional extension rather than a core requirement.
+
+\subsection{Covariance and inverse-covariance estimation}
+
+The project will compare several covariance strategies:
+\begin{enumerate}
+    \item the sample covariance matrix on reduced feature sets,
+    \item shrinkage covariance estimation,
+    \item sparse inverse-covariance estimation through graphical lasso or a related method.
+\end{enumerate}
+
+The precision matrix
+\[
+\Omega = \Sigma^{-1}
+\]
+encodes conditional dependence relationships, which are especially interesting in gene-expression studies. Because fitting a graphical model on all \(20{,}531\) genes is not realistic, inverse-covariance estimation will be performed on the reduced top-\(500\)-gene subset. This part of the project will be used mainly to compare naive and regularized dependence estimates and to study the stability of inferred conditional relationships.
+
+\begin{defbox}
+\textbf{High-dimensional principle.}
+The project will not treat the sample covariance matrix as automatically trustworthy. Regularization and stability checks will be part of the analysis, not optional add-ons.
+\end{defbox}
+
+\subsection{Multivariate regression}
+
+To incorporate the regression component in a way that remains tied to the main analysis, the project will use multivariate response variables derived from the expression data. A practical strategy is to let
+\[
+Y_i = {(PC_{i1},\dots,PC_{ik})}^\top
+\]
+be the top \(k\) principal-component scores, and relate them to clinical covariates \(Z_i\) through a multivariate regression model of the form
+\[
+Y_i = B^\top Z_i + \varepsilon_i.
+\]
+The main goal here is to assess whether major latent transcriptomic directions are associated with age, sex, and selected clinical indicators after accounting for cancer type where appropriate.
+
+\subsection{Classification analysis}
+
+The main supervised-learning comparison will use multiclass cancer type as the response.
+
+The comparison will include:
+\begin{enumerate}
+    \item penalized multinomial logistic regression on the leading principal components,
+    \item support vector machines with linear and radial-basis-function decision boundaries,
+    \item tree-based methods such as random forests and gradient-boosted trees,
+    \item a shallow feedforward neural network on the same leading principal-component representation.
+\end{enumerate}
+
+For the primary comparison, all classifiers will be trained on the same leading principal-component representation so that differences in performance can be attributed to the learning method rather than to different feature spaces. In every supervised comparison, gene filtering, scaling, and PCA will be estimated using training data only and then applied to validation or test data to avoid information leakage. If time permits, a secondary sensitivity analysis will refit the tree-based and neural-network models on the top-\(2{,}000\)-gene filtered matrix to assess whether nonlinear methods benefit from the higher-dimensional representation.
+
+\subsection{Clustering and unsupervised discovery}
+
+The unsupervised part of the project will focus on clustering the leading principal-component representation. The comparison will include:
+\begin{enumerate}
+    \item \(k\)-means,
+    \item hierarchical clustering,
+    \item Gaussian-mixture or model-based clustering when feasible.
+\end{enumerate}
+
+These methods will be evaluated against known cancer types to determine whether unsupervised structure aligns with labeled disease categories or reveals broader molecular organization across cancers.
+
+%===========================================================
+\section{Methodological Coverage}
+
+The analysis spans the following methodological components:
+
+\begin{enumerate}
+    \item \textbf{Examples of multivariate data:} each retained tumor sample is a high-dimensional transcriptomic vector with accompanying clinical variables.
+    \item \textbf{Random vectors and high-dimensional phenomena:} the gene-expression vectors provide a direct \(p\)-dimensional random-vector setting with \(p\) large.
+    \item \textbf{Multivariate normal ideas, CLT, and mean estimation:} these will motivate exploratory inference on transformed expression summaries and group-level comparisons.
+    \item \textbf{Covariance estimation, PCA, and inverse covariance:} this is one of the main pillars of the project.
+    \item \textbf{Multivariate regression:} clinical covariates will be related to multivariate latent-expression summaries.
+    \item \textbf{Classification and support vector machines:} multiclass cancer-type prediction provides the main supervised task.
+    \item \textbf{Kernelization:} kernel SVM and possibly kernel PCA will extend the linear analyses.
+    \item \textbf{Tree-based methods and neural networks:} these will be benchmarked against linear and kernel approaches.
+    \item \textbf{Dimensionality reduction and clustering:} both are central, not peripheral, parts of the project.
+\end{enumerate}
+
+The same dataset therefore supports exploratory, inferential, supervised, and unsupervised analyses within a single primary workflow.
+
+%===========================================================
+\section{Performance Criteria and Validation}
+
+The project will use different metrics for different components:
+\begin{enumerate}
+    \item \textbf{PCA and dimension reduction:} explained variance, visual separation in low-dimensional space, and stability under repeated subsampling.
+    \item \textbf{Covariance and graphical models:} sparsity level, edge stability under resampling, and qualitative interpretability of the inferred dependence structure.
+    \item \textbf{Regression:} multivariate test statistics and out-of-sample prediction error when appropriate.
+    \item \textbf{Classification:} test-set accuracy, macro-F1, confusion matrices, and cross-validated training performance.
+    \item \textbf{Clustering:} silhouette scores, cluster stability, and agreement with cancer-type labels through adjusted Rand index.
+\end{enumerate}
+
+The main validation principle will be out-of-sample assessment wherever possible. For supervised tasks, the data will be divided using a stratified \(80/20\) train-test split, with \(5\)-fold cross-validation performed on the training portion for tuning. For unsupervised tasks, stability under repeated subsampling will be emphasized, and cluster assignments will be compared with known cancer labels only after the clustering step is completed.
+
+%===========================================================
+\section{Implementation Plan}
+
+\subsection{Software}
+
+The project will be implemented in \texttt{Python}. The code base will likely be organized as:
+\begin{enumerate}
+    \item \texttt{load\_tcga.py}: import and merge the TCGA RNA and clinical files,
+    \item \texttt{preprocess.py}: filtering, scaling, and feature construction,
+    \item \texttt{pca\_covariance.py}: PCA, covariance, and graphical-model routines,
+    \item \texttt{regression.py}: multivariate regression analyses,
+    \item \texttt{classification.py}: linear, kernel, tree-based, and neural classifiers,
+    \item \texttt{clustering.py}: clustering and unsupervised comparisons,
+    \item \texttt{plots\_tables.py}: figures and summary tables for the final report.
+\end{enumerate}
+
+\subsection{Computing considerations}
+
+The full expression matrix is large enough that memory-aware preprocessing will be necessary. Initial exploration can be run locally, but the heavier experiments may need batch execution or a more capable machine, especially for repeated model fitting and stability analyses.
+
+\subsection{Reproducibility}
+
+To maintain reproducibility:
+\begin{enumerate}
+    \item all preprocessing choices will be scripted,
+    \item train-test splits and random seeds will be saved,
+    \item derived analysis tables will be regenerated from code rather than edited manually,
+    \item every figure in the report will be traceable to a script and a saved results file.
+\end{enumerate}
+
+%===========================================================
+\section{Expected Outcomes}
+
+The project is expected to produce the following outcomes:
+\begin{enumerate}
+    \item a clean and interpretable low-dimensional view of pan-cancer transcriptomic structure,
+    \item a benchmark across linear, kernel, tree-based, and neural classifiers for cancer-type prediction,
+    \item an assessment of how well clustering on principal-component scores aligns with known cancer types,
+    \item a supporting comparison of covariance and sparse precision-matrix estimation strategies in a high-dimensional setting.
+\end{enumerate}
+
+More broadly, the project should demonstrate which multivariate methods remain reliable in this setting under a fixed and reproducible preprocessing pipeline.
+
+%===========================================================
+\section{Potential Issues and Mitigation Strategies}
+
+The main risks are high dimensionality, batch effects or measurement heterogeneity, label imbalance across cancer types, and computational burden. These risks will be handled as follows:
+\begin{enumerate}
+    \item reduce dimensionality before expensive modeling steps,
+    \item keep one primary pan-cancer task rather than branching into many outcome definitions,
+    \item use stratified evaluation for classification and estimate supervised preprocessing steps on training data only,
+    \item check the leading PCs for batch- or center-related structure and treat any strong artifact as a required sensitivity analysis,
+    \item avoid over-interpreting unstable covariance or graph estimates.
+\end{enumerate}
+
+\begin{warningbox}
+\textbf{Most important risk.}
+The biggest danger is scope expansion. The project will therefore be staged around one common feature pipeline, one main supervised task, and one main unsupervised task, with covariance modeling and regression treated as supporting analyses.
+\end{warningbox}
+
+%===========================================================
+\section{Timeline and 4-Week Milestones}
+
+The project will follow a focused four-week schedule.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{>{\bfseries\raggedright\arraybackslash}p{1.2cm} >{\bfseries\raggedright\arraybackslash}p{4.1cm} >{\raggedright\arraybackslash}X}
+\toprule
+Week & Milestone & Deliverable \\
+\midrule
+1 & Data cleaning and exploratory setup &
+Load the TCGA files, merge identifiers, construct the top-\(2{,}000\)-gene analysis matrix, and produce summary tables describing sample counts, missingness, and cancer-type composition. \\
+
+2 & PCA and covariance analysis &
+Run PCA, examine explained variance and low-dimensional structure, and compare sample covariance, shrinkage covariance, and graphical lasso on the reduced feature subsets. \\
+
+3 & Supervised learning comparison &
+Implement the classification models for cancer-type prediction using the fixed train-test protocol and cross-validated tuning. \\
+
+4 & Clustering, synthesis, and write-up &
+Complete clustering on the PC representation, summarize the supervised and unsupervised results, and finish the final paper and presentation figures. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+%===========================================================
+\section{Conclusion}
+
+This proposal outlines a research-grade study built around the TCGA PanCanAtlas RNA and clinical collection. The project centers on a fixed transcriptomic feature pipeline, a primary supervised task of cancer-type classification, and a primary unsupervised task of PCA-based clustering, with covariance modeling and multivariate regression used to interpret the resulting structure.
+
+The final contribution will be a coherent statistical study showing how multivariate methods behave in a large, real, high-dimensional application when the emphasis is placed on one defensible analytic workflow rather than on a broad collection of disconnected methods.
+
+%===========================================================
+\begin{thebibliography}{9}
+
+\bibitem{TCGAPanCanAtlas}
+The Cancer Genome Atlas Research Network. (2013).
+\newblock The Cancer Genome Atlas Pan-Cancer analysis project.
+\newblock \emph{Nature Genetics}, 45(10), 1113--1120.
+
+\bibitem{GDCPanCan}
+National Cancer Institute Genomic Data Commons.
+\newblock TCGA -- PanCanAtlas Publications.
+\newblock Available at \url{https://gdc.cancer.gov/about-data/publications/pancanatlas}. Accessed April 26, 2026.
+
+\bibitem{FriedmanGlasso}
+Friedman, J., Hastie, T., and Tibshirani, R. (2008).
+\newblock Sparse inverse covariance estimation with the graphical lasso.
+\newblock \emph{Biostatistics}, 9(3), 432--441.
+
+\bibitem{LedoitWolf}
+Ledoit, O. and Wolf, M. (2004).
+\newblock A well-conditioned estimator for large-dimensional covariance matrices.
+\newblock \emph{Journal of Multivariate Analysis}, 88(2), 365--411.
+
+\bibitem{ESL}
+Hastie, T., Tibshirani, R., and Friedman, J. (2009).
+\newblock \emph{The Elements of Statistical Learning}.
+\newblock Springer.
+
+\end{thebibliography}
+
+\end{document}

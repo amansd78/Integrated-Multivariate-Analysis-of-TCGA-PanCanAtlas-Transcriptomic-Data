@@ -1,0 +1,23 @@
+# Python environments and caches
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Generated analysis outputs
+artifacts/
+
+# LaTeX build products (keep source .tex files and final PDFs)
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.out
+*.snm
+*.toc
+
+# Operating-system files
+.DS_Store
+Thumbs.db

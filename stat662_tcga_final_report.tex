@@ -1,0 +1,515 @@
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage[margin=1in]{geometry}
+\usepackage{microtype}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=MidnightBlue,
+  citecolor=MidnightBlue,
+  urlcolor=MidnightBlue,
+  pdftitle={STAT 662 Final Report: Integrated Multivariate Analysis of TCGA Pan-Cancer Transcriptomic Data},
+  pdfauthor={Amandeep Singh}
+}
+
+\setstretch{1.08}
+\setlength{\parskip}{0.55em}
+\setlength{\parindent}{0pt}
+\captionsetup{font=small, labelfont=bf}
+\setlist[itemize]{leftmargin=1.4em, itemsep=0.2em, topsep=0.2em}
+\setlist[enumerate]{leftmargin=1.6em, itemsep=0.2em, topsep=0.2em}
+
+\definecolor{ReportBlue}{HTML}{163A5F}
+\definecolor{ReportGreen}{HTML}{1E5A4B}
+\definecolor{ReportGold}{HTML}{A67C2E}
+\definecolor{ReportGray}{HTML}{566573}
+
+\titleformat{\section}{\large\bfseries\color{ReportBlue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{ReportGreen}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{ReportGold}}{\thesubsubsection}{0.6em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{STAT 662 Final Report}
+\fancyhead[R]{TCGA Pan-Cancer Transcriptomics}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+
+\newcommand{\tcga}{TCGA PanCanAtlas}
+\newcommand{\bestclf}{Logistic Regression}
+\newcommand{\bestcluster}{K-means}
+
+\begin{document}
+\hypersetup{pageanchor=false}
+
+\begin{titlepage}
+\centering
+\vspace*{1.8cm}
+{\Large\color{ReportGreen}George Mason University\par}
+\vspace{0.5cm}
+{\LARGE\bfseries\color{ReportBlue}Integrated Multivariate Analysis of \tcga\ Transcriptomic Data\par}
+\vspace{0.35cm}
+{\large\bfseries Final Project Report for STAT 662\par}
+\vspace{1.1cm}
+{\large Amandeep Singh\par}
+\vspace{0.15cm}
+{\normalsize May 11, 2026\par}
+\vfill
+\begin{minipage}{0.9\textwidth}
+\small
+\textbf{Project scope.} This report documents a full end-to-end multivariate analysis pipeline for \tcga\ RNA-seq expression profiles. The implemented workflow harmonizes raw transcriptomic and clinical files, constructs one representative tumor sample per patient, derives shared top-variable gene feature spaces, and benchmarks four linked analyses: principal component analysis and covariance regularization, multivariate regression on latent expression scores, supervised cancer-type classification, and unsupervised clustering.
+\end{minipage}
+\vfill
+\rule{0.86\textwidth}{0.8pt}\par
+\vspace{0.25cm}
+{\small Data sources used in the implementation: \texttt{EBPlusPlusAdjustPANCAN\_IlluminaHiSeq\_RNASeqV2.geneExp.tsv}, \texttt{clinical\_PANCAN\_patient\_with\_followup.tsv}, and \texttt{TCGA-CDR-SupplementalTableS1.xlsx}. \par}
+\end{titlepage}
+\clearpage
+\hypersetup{pageanchor=true}
+
+\begin{abstract}
+This project implements a research-style analysis of \tcga\ pan-cancer transcriptomic data using patient-level tumor expression profiles and harmonized clinical covariates. Starting from 11,069 manifest rows and 10,274 unique patients, the pipeline identifies 10,250 representative tumor samples and yields a final working cohort of 10,055 patients across 32 cancer types after downstream harmonization and matrix cleaning. Expression preprocessing removes all-empty rows and columns, median-imputes remaining gene-wise missing values, and builds shared 2,000-gene and 500-gene high-variance feature spaces for downstream modeling.
+
+The principal component analysis reveals structured but still high-dimensional variation: PC1 explains 6.61\% of the variance, the first 10 PCs explain 34.35\%, and the first 50 PCs explain 57.94\%. PCA directions are extremely stable under 10 repeated 80\% subsamples, with mean absolute loading correlations above 0.997 for PCs 1--5 and mean subspace similarity of 0.9995. On the covariate-complete regression subset of 10,005 patients, a ridge-based multivariate regression of the first 10 PC scores on age, sex, pathologic stage, and cancer acronym attains a variance-weighted cross-validated $R^2$ of 0.6944, with cancer type by far the dominant explanatory block. In supervised classification, \bestclf\ on the shared 2,000-gene, 50-PC representation achieves the best held-out macro-F1 (0.8928), while a multilayer perceptron obtains the highest raw accuracy (0.9135) but lower macro-F1, indicating less balanced performance across rare and common tumor classes. In unsupervised learning, \bestcluster\ yields the strongest adjusted Rand index (0.5406) and the best subsample stability (0.8020), whereas agglomerative clustering attains the highest normalized mutual information (0.7149). Overall, the analysis shows that pan-cancer RNA expression contains strong but not perfectly class-separable latent structure, with supervised classification substantially outperforming unsupervised recovery of known cancer labels.
+\end{abstract}
+
+\section{Introduction}
+Pan-cancer transcriptomic data are simultaneously high-dimensional, structured, and heterogeneous. This combination makes them a natural test bed for multivariate statistics: the data contain latent biological programs, strong covariance structure, clinically interpretable axes of variation, and a multiclass prediction problem with meaningful class imbalance and overlap. Large-scale TCGA efforts have already established both the scientific value of cross-tumor integration and the importance of tissue-of-origin structure in pan-cancer molecular analyses \cite{weinstein2013tcga,hoadley2018cell}. The goal of this project was not to fit one isolated model, but to build an integrated analysis pipeline that answers four linked questions:
+
+\begin{enumerate}
+  \item How much of the global transcriptomic variation can be summarized by a low-dimensional principal component representation?
+  \item Which clinical variables explain the dominant latent expression axes?
+  \item How accurately can cancer type be predicted from a shared low-dimensional transcriptomic representation?
+  \item To what extent do unsupervised clusters recover known tumor-type structure?
+\end{enumerate}
+
+This report presents the completed pipeline and the resulting analyses on the final harmonized cohort of 10,055 patients across 32 cancer types.
+
+\subsection{Data provenance and related work}
+The raw files used here come from the TCGA PanCanAtlas ecosystem and were downloaded through Genomic Data Commons endpoints, with the pan-cancer matrices aligned to public TCGA dissemination channels such as UCSC Xena \cite{grossman2016shared,goldman2020xena}. The clinical outcome workbook used in this project is the TCGA Pan-Cancer Clinical Data Resource (TCGA-CDR), which was curated specifically to support reliable outcome and endpoint analyses across TCGA disease groups \cite{liu2018cdr}. Methodologically, the closest large-scale related work is the PanCanAtlas integrative analysis of Hoadley et al., which emphasized that molecular classification across more than 10,000 TCGA tumors is dominated by cell-of-origin patterns \cite{hoadley2018cell}. The present study is narrower and more statistical in scope: it focuses on one harmonized expression cohort and uses a single end-to-end workflow to connect PCA, covariance estimation, multivariate regression, supervised classification, and unsupervised clustering.
+
+\section{Data and Cohort Construction}
+\subsection{Source files}
+The pipeline draws on three raw \tcga\ inputs:
+
+\begin{itemize}
+  \item the pan-cancer RNA-seq gene expression matrix,
+  \item the patient-level clinical follow-up table, and
+  \item the TCGA Clinical Data Resource supplemental workbook.
+\end{itemize}
+
+The expression matrix provides the high-dimensional molecular measurements, while the clinical tables contribute demographic and pathologic descriptors used in the regression analysis and in downstream interpretation. These resources are part of the broader TCGA and PanCanAtlas data landscape described by The Cancer Genome Atlas Research Network and related data-platform publications \cite{weinstein2013tcga,grossman2016shared,goldman2020xena,liu2018cdr}.
+
+\subsection{Representative tumor sample selection}
+Each TCGA barcode was parsed to recover patient identifiers and sample-type codes. The sample-selection logic prioritizes tumor-derived specimens and prefers primary solid tumors when multiple samples exist for a patient. In practice, sample types are ranked so that code 01 (Primary Solid Tumor) has highest priority, followed by blood-derived primary cancer, additional primary, recurrent tumor, and metastatic specimens. This ranking matters because it creates one analysis profile per patient and avoids pseudo-replication from multiple tumor aliquots.
+
+\begin{table}[H]
+\centering
+\caption{Cohort construction summary from raw ingestion through the final analysis matrix.}
+\begin{tabular}{p{0.60\linewidth}r}
+\toprule
+\textbf{Quantity} & \textbf{Value} \\
+\midrule
+Manifest rows loaded & 11,069 \\
+Unique patients in manifest & 10,274 \\
+Tumor sample rows & 10,332 \\
+Representative tumor rows after barcode prioritization & 10,250 \\
+Final representative patients after harmonization and cleaning & 10,055 \\
+Cancer types in final cohort & 32 \\
+Original gene columns before filtering & 20,531 \\
+Missing expression entries before imputation & 3,218,684 \\
+Rows dropped for being all missing & 0 \\
+Columns dropped for being all missing & 0 \\
+Final shared high-variance feature spaces & 2,000 genes and 500 genes \\
+\bottomrule
+\end{tabular}
+\label{tab:cohort-summary}
+\end{table}
+
+The final cohort is large enough to support both supervised and unsupervised analyses while still retaining substantial biological heterogeneity. The most frequent cancer types are BRCA (1,097 samples), KIRC (533), UCEC (532), HNSC (520), LUAD (515), LGG (515), THCA (505), and LUSC (501). The supervised split preserves class balance well: 8,044 samples were assigned to training and 2,011 to testing, with per-cancer held-out shares ranging from 19.30\% to 20.83\%.
+
+\section{Preprocessing and Shared Feature Design}
+\subsection{Expression cleaning}
+The preprocessing stage first coerces non-numeric values to missing, removes all-empty rows and columns, and then imputes remaining missing values by column median. The resulting matrix is finite throughout and is saved as a reusable cache for downstream steps. The transform-selection logic retained the original scale (\texttt{transform\_used = none}), which is consistent with the stabilized nature of the source RNA-seq matrix.
+
+\subsection{Feature selection strategy}
+After low-variance filtering, genes are ranked by empirical variance and two shared feature spaces are created:
+
+\begin{itemize}
+  \item a 2,000-gene space for PCA, classification, clustering, and regression,
+  \item a 500-gene subset for covariance regularization and graphical-lasso analysis.
+\end{itemize}
+
+Using a shared top-2,000 gene matrix is an important design choice. It aligns the supervised and unsupervised analyses onto a common representation and makes cross-module comparisons interpretable: the classifier, the regression model, and the clustering methods all operate on the same underlying high-variance molecular signal before task-specific dimensionality reduction.
+
+\section{Methodology}
+\subsection{Principal component analysis and covariance regularization}
+Let $X \in \mathbb{R}^{n \times p}$ denote the cleaned top-2,000 expression matrix with $n = 10{,}055$ patients and $p = 2{,}000$ genes. After column standardization, PCA is fit to
+\[
+Z = \mathrm{scale}(X),
+\]
+and the leading score matrix is computed as
+\[
+T = ZV_k,
+\]
+where $V_k$ contains the first $k$ eigenvectors of the sample covariance matrix. The implemented workflow retains up to 50 PCs for exploratory analysis and 10 PCs for the regression module.
+
+To assess stability, the analysis refits PCA on 10 random 80\% subsamples and compares each refit against the full-data components using absolute loading correlations and principal-angle-based subspace similarity. This is a stronger check than simply replotting variance curves; it asks whether the estimated directions themselves persist under perturbation of the sample set.
+
+For covariance modeling on the top-500 gene matrix, three estimators are compared:
+\begin{itemize}
+  \item the empirical covariance,
+  \item the Ledoit--Wolf shrinkage covariance,
+  \item a sparse inverse-covariance estimate from Graphical Lasso with cross-validated penalty selection.
+\end{itemize}
+The Graphical Lasso is then converted into partial correlations to highlight conditional gene-gene structure beyond marginal correlation.
+
+\subsection{Multivariate regression on latent transcriptomic scores}
+The regression module treats the first 10 PC scores as a multivariate response:
+\[
+Y = XB + E,
+\]
+where the design matrix contains age at diagnosis, sex, pathologic stage, and cancer acronym. Because the design includes many dummy variables, a multivariate ridge estimator is used with cross-validated penalty selection over $\alpha \in \{0.1, 1, 10, 100\}$. Performance is summarized using variance-weighted multivariate $R^2$ under five-fold cross-validation.
+
+Only patients with complete regression covariates are eligible for this module, so the regression analysis is fit on 10,005 of the 10,055 expression-profile rows.
+
+Two inferential summaries are reported. First, an overall permutation test evaluates whether the full design predicts latent expression structure better than chance. Second, a blockwise leave-one-block-out analysis measures the drop in multivariate $R^2$ when each covariate block is removed, producing both an effect-size summary (delta-$R^2$) and blockwise permutation p-values.
+
+\subsection{Supervised cancer-type classification}
+The classification stage uses the shared 2,000-gene expression matrix and fits a training-only standardization-plus-PCA transformation that retains 50 PCs. This low-dimensional embedding is then supplied to six benchmark classifiers:
+
+\begin{itemize}
+  \item Logistic Regression,
+  \item Linear SVM,
+  \item RBF SVM,
+  \item Random Forest,
+  \item Histogram Gradient Boosting,
+  \item Multilayer Perceptron.
+\end{itemize}
+
+Hyperparameters are tuned by five-fold stratified cross-validation on the training split, with macro-F1 used as the model-selection criterion. This choice is deliberate. In a 32-class cancer task, plain accuracy can be dominated by large classes; macro-F1 forces the benchmark to account for minority tumor types.
+
+\subsection{Unsupervised clustering}
+The clustering module starts from the same standardized top-2,000 gene matrix, projects it to 20 PCs, and compares three methods at $K = 32$ clusters:
+
+\begin{itemize}
+  \item K-means,
+  \item agglomerative Ward clustering,
+  \item Gaussian mixture modeling with diagonal covariance and regularization.
+\end{itemize}
+
+Performance is evaluated using silhouette score for internal separation, adjusted Rand index (ARI) and normalized mutual information (NMI) against known cancer labels, and a subsample stability score based on pairwise ARI across repeated 80\% subsamples.
+
+\section{Results}
+\subsection{Global transcriptomic structure}
+The PCA results show that the pan-cancer transcriptome is neither low-rank in a trivial sense nor unstructured. PC1 explains 6.61\% of the total variance, PC2 explains 6.16\%, and the first 10 PCs explain 34.35\% cumulatively. By PC50 the cumulative explained variance reaches 57.94\%. This pattern indicates strong low-dimensional organization embedded inside a still substantial residual high-dimensional structure.
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{artifacts/tcga/report/top15_pc_explained_variance.pdf}
+  \caption{Explained variance profile.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{artifacts/tcga/pca_covariance/pca_pc1_pc2_by_cancer.pdf}
+  \caption{PC1 vs.\ PC2 by cancer type.}
+\end{subfigure}
+\caption{Low-dimensional structure of the shared top-2,000 gene expression space. The variance curve shows gradual decay rather than a sharp elbow, while the score plot reveals broad but incomplete separation between cancer programs.}
+\label{fig:pca-main}
+\end{figure}
+
+The leading loadings suggest biologically coherent structure rather than noise. PC1 is dominated by genes such as \textit{ECHS1}, \textit{TST}, \textit{MPST}, \textit{AMBP}, \textit{F2}, \textit{APOH}, \textit{ITIH1}, \textit{RBP4}, and \textit{ASGR1}; in the regression model, LIHC shows by far the strongest positive coefficient on PC1 (40.37), which is consistent with PC1 capturing a liver-like transcriptional program. PC2 is driven by genes including \textit{ABAT}, \textit{METTL7A}, \textit{NCAM1}, and \textit{MAPT}, while LGG and GBM show strong positive coefficients on this axis. PC3 is heavily loaded on ribosomal genes (\textit{RPL15}, \textit{RPL37A}, \textit{RPL32}, \textit{RPS11}, \textit{RPL18}), indicating a broad translational or housekeeping axis that varies materially across tumor types.
+
+\begin{table}[H]
+\centering
+\caption{PCA stability summary under 10 repeated 80\% subsamples.}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Component} & \textbf{Mean abs.\ loading corr.} & \textbf{Min abs.\ loading corr.} & \textbf{Mean abs.\ var.\ diff.} \\
+\midrule
+PC1 & 0.9979 & 0.9957 & 0.00027 \\
+PC2 & 0.9981 & 0.9964 & 0.00020 \\
+PC3 & 0.9992 & 0.9988 & 0.00030 \\
+PC4 & 0.9987 & 0.9961 & 0.00009 \\
+PC5 & 0.9983 & 0.9955 & 0.00016 \\
+\midrule
+\multicolumn{2}{l}{Mean subspace similarity} & \multicolumn{2}{r}{0.9995} \\
+\multicolumn{2}{l}{Minimum subspace similarity} & \multicolumn{2}{r}{0.9986} \\
+\bottomrule
+\end{tabular}
+\label{tab:pca-stability}
+\end{table}
+
+These stability values are exceptionally high. In practical terms, the leading PCs are not artifacts of one particular sample split; they are reproducible directions of variation in the cohort.
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{artifacts/tcga/report/pca_stability_component_heatmap.pdf}
+  \caption{Component-wise PCA stability.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{artifacts/tcga/report/top_stable_graphical_lasso_edges.pdf}
+  \caption{Most stable sparse conditional edges.}
+\end{subfigure}
+\caption{Stability diagnostics for the unsupervised structure. The PCA summary shows near-perfect reproducibility of the leading directions. The edge-stability panel indicates that sparse conditional dependencies are not random either, with several gene pairs recurring in every resample.}
+\label{fig:pca-stability-graph}
+\end{figure}
+
+Covariance regularization confirms the need for shrinkage and sparsity. The empirical covariance matrix has condition number 127,799.75, indicating ill-conditioning typical of high-dimensional genomic data. Ledoit--Wolf shrinkage is 0.0356 and OAS shrinkage is 0.00424, both stabilizing the covariance estimate. The cross-validated Graphical Lasso penalty is 0.5543. Among the strongest partial-correlation edges are \textit{CSN2}--\textit{LALBA} (0.445), \textit{SFTPA2}--\textit{SFTPA1} (0.401), \textit{SAA1}--\textit{SAA2} (0.383), \textit{MBP}--\textit{PLP1} (0.378), and \textit{COL6A2}--\textit{COL6A1} (0.356). The most stable selected edges include \textit{ALB}--\textit{TF} and multiple ribosomal pairs, several of which appear in all 10 stability resamples.
+
+\subsection{Multivariate regression}
+The ridge regression model, fit on the 10,005-patient covariate-complete subset, achieves an in-sample variance-weighted $R^2$ of 0.6982 and a five-fold cross-validated variance-weighted $R^2$ of 0.6944. The small gap between these values is encouraging: the regression relation between clinical variables and latent expression structure generalizes well and does not appear to be driven by severe overfitting. The overall permutation p-value is 0.0385, providing evidence that the clinical design captures nontrivial multivariate structure in the expression PCs.
+
+\begin{table}[H]
+\centering
+\caption{Blockwise multivariate regression summary. Delta-$R^2$ measures the decrease in variance-weighted $R^2$ when the block is removed.}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Block} & \textbf{Columns} & \textbf{Reduced CV $R^2$} & \textbf{CV delta-$R^2$} & \textbf{Permutation p-value} \\
+\midrule
+Cancer acronym & 32 & 0.1382 & 0.5561 & 0.0385 \\
+Pathologic stage & 20 & 0.6937 & 0.0006 & 0.0385 \\
+Age at diagnosis & 1 & 0.6942 & 0.0002 & 0.1923 \\
+Sex & 2 & 0.6943 & 0.0001 & 0.3462 \\
+\bottomrule
+\end{tabular}
+\label{tab:regression-blocks}
+\end{table}
+
+The numerical pattern is clear. Cancer acronym is overwhelmingly the dominant covariate block: removing it collapses cross-validated $R^2$ from 0.6944 to 0.1382, a loss of 0.5561. This means that a large fraction of the latent expression geometry is simply cross-cancer biological separation. Pathologic stage is statistically detectable but substantively much smaller, with delta-$R^2 = 0.0006$. Age and sex have negligible additional explanatory value after accounting for cancer type and stage.
+
+Per-component prediction accuracy supports the same conclusion. Cross-validated $R^2$ ranges from 0.5163 on PC3 up to 0.8162 on PC2, with strong performance on PC1 (0.7241), PC4 (0.7711), and PC7 (0.7291). The model therefore explains not just one dominant axis, but several clinically structured latent directions.
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{artifacts/tcga/report/regression_block_cv_delta_r2.pdf}
+  \caption{Cross-validated contribution by block.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{artifacts/tcga/report/regression_block_p_values.pdf}
+  \caption{Permutation p-values by block.}
+\end{subfigure}
+\caption{Multivariate regression findings. Cancer type dominates the clinical explanation of transcriptomic PC structure, while pathologic stage contributes a much smaller but still detectable signal.}
+\label{fig:regression}
+\end{figure}
+
+\subsection{Supervised classification}
+The supervised benchmark is where the shared transcriptomic feature space is most operationally useful. Table~\ref{tab:classification} compares six models on the held-out test set.
+
+\begin{table}[H]
+\centering
+\caption{Held-out classification comparison on the shared top-2,000 gene, 50-PC representation.}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{Macro-F1} & \textbf{Weighted F1} & \textbf{Best CV macro-F1} \\
+\midrule
+Logistic Regression & 0.9115 & 0.8928 & 0.9141 & 0.8727 \\
+RBF SVM & 0.9055 & 0.8887 & 0.9084 & 0.8679 \\
+Linear SVM & 0.9020 & 0.8866 & 0.9040 & 0.8653 \\
+Multilayer Perceptron & 0.9135 & 0.8809 & 0.9094 & 0.8656 \\
+Random Forest & 0.9005 & 0.8615 & 0.8909 & 0.8452 \\
+Histogram Gradient Boosting & 0.8991 & 0.8613 & 0.8938 & 0.8440 \\
+\bottomrule
+\end{tabular}
+\label{tab:classification}
+\end{table}
+
+The most important result is that \bestclf\ is the best model by macro-F1 (0.8928), even though the multilayer perceptron has slightly higher raw accuracy (0.9135). This divergence is informative. The MLP appears to gain accuracy on common classes, but Logistic Regression is more balanced across the full 32-class label set. In a biomedical setting, that balance is usually the better property.
+
+Two additional comparisons reinforce that point. First, Logistic Regression slightly outperforms RBF SVM on overall macro-F1 by 0.0041, a real but modest edge. Second, both models are far ahead of the tree-based baselines on macro-F1, suggesting that the cancer signal is already well organized in a roughly linear or smoothly separable PC space and may not require deep tree partitioning to exploit.
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{artifacts/tcga/report/classification_model_heatmap.pdf}
+  \caption{Classifier scorecard.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{artifacts/tcga/report/best_classifier_per_class_f1.pdf}
+  \caption{Per-class F1 for the best model.}
+\end{subfigure}
+\caption{Supervised classification results. The best model is not the model with the single highest accuracy; the decisive criterion is balanced performance across all cancer types.}
+\label{fig:classification}
+\end{figure}
+
+At the class level, the best classifier is strong on many tumor types. Logistic Regression achieves perfect F1 on UVM, THCA, TGCT, and PCPG, and near-perfect scores on PRAD (0.9949), BRCA (0.9838), OV (0.9836), LIHC (0.9796), and THYM (0.9787). In total, 20 of the 32 classes achieve F1 at or above 0.90. However, the tail of the problem remains nontrivial. The lowest F1 values occur for READ (0.4524), UCS (0.6207), ESCA (0.6667), COAD (0.6748), and CHOL (0.7500). Some of these weak points correspond to low support, but others reflect genuine biological overlap between anatomically or histologically related cancers.
+
+\begin{table}[H]
+\centering
+\caption{Most consequential confusion patterns for the best classifier.}
+\begin{tabular}{lrr}
+\toprule
+\textbf{True $\rightarrow$ predicted} & \textbf{Count} & \textbf{Interpretation} \\
+\midrule
+COAD $\rightarrow$ READ & 32 & Colorectal biological overlap \\
+READ $\rightarrow$ COAD & 12 & Symmetric colorectal overlap \\
+STAD $\rightarrow$ ESCA & 10 & Upper gastrointestinal similarity \\
+ESCA $\rightarrow$ STAD & 9 & Upper gastrointestinal similarity \\
+HNSC $\rightarrow$ CESC & 7 & Squamous-pattern overlap \\
+LGG $\rightarrow$ GBM & 6 & Related brain tumor programs \\
+STAD $\rightarrow$ COAD & 6 & Gastrointestinal overlap \\
+BLCA $\rightarrow$ HNSC & 5 & Minority misrouting pattern \\
+\bottomrule
+\end{tabular}
+\label{tab:confusions}
+\end{table}
+
+These confusion pairs are not random failures. They occur in biologically adjacent disease groups, especially colorectal, upper gastrointestinal, and central nervous system tumors. That is a desirable failure mode: the model is usually ``wrong nearby'' rather than completely implausible.
+
+The Logistic Regression versus RBF SVM comparison is also instructive at the class level. Logistic Regression shows its largest advantages on KICH (+0.0619 F1), GBM (+0.0492), OV (+0.0396), TGCT (+0.0385), and UCEC (+0.0346). RBF SVM does slightly better on a few rare or difficult classes such as UCS, READ, CHOL, and MESO, but not by enough to overcome the overall macro-F1 gap.
+
+\subsection{Unsupervised clustering}
+The unsupervised results are meaningfully weaker than the supervised ones, but still informative.
+
+\begin{table}[H]
+\centering
+\caption{Clustering comparison on the 20-PC transcriptomic representation.}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Method} & \textbf{Silhouette} & \textbf{ARI} & \textbf{NMI} & \textbf{Subsample ARI} \\
+\midrule
+K-means & 0.2630 & 0.5406 & 0.6762 & 0.8020 \\
+Agglomerative clustering & 0.2516 & 0.5335 & 0.7149 & 0.6522 \\
+Gaussian Mixture & 0.2356 & 0.5119 & 0.6757 & 0.6727 \\
+\bottomrule
+\end{tabular}
+\label{tab:clustering}
+\end{table}
+
+\bestcluster\ is the strongest overall method by ARI and by subsample stability. Its ARI of 0.5406 is far below the supervised macro-F1 values, which is expected: unsupervised clustering is not given label information and therefore cannot be judged by the same standard. Still, the ARI above 0.5 indicates substantial recovery of known cancer structure from transcriptomic geometry alone. Agglomerative clustering is notable for a different reason: it achieves the highest NMI (0.7149), suggesting that its clusters retain a large amount of information about cancer identity even if their one-to-one alignment with labels is slightly weaker than K-means. Gaussian mixtures are the weakest overall, likely because a diagonal-covariance mixture is too restrictive for the geometry of this PC space.
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{artifacts/tcga/report/clustering_metric_heatmap.pdf}
+  \caption{Clustering metric scorecard.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{artifacts/tcga/clustering/kmeans_cluster_vs_cancer.pdf}
+  \caption{K-means cluster by cancer contingency.}
+\end{subfigure}
+\caption{Unsupervised clustering performance. K-means provides the best overall compromise between internal separation, agreement with known labels, and subsample stability.}
+\label{fig:clustering}
+\end{figure}
+
+\section{Discussion}
+Several conclusions emerge from the full pipeline.
+
+First, the transcriptome contains strong, reproducible, and biologically organized low-dimensional structure. The PCA stability results are so high that the leading latent directions can be treated as robust empirical summaries rather than fragile sample artifacts.
+
+Second, most of the explainable variation in those latent directions is cross-cancer variation, not demographic variation. Cancer acronym dominates the regression model, while age and sex contribute almost nothing once tumor identity is known. Pathologic stage contributes a signal that is statistically detectable but comparatively small in magnitude.
+
+Third, the supervised task is easier than the unsupervised one, but not trivial. A macro-F1 near 0.893 on 32 cancer types is strong performance, especially because the model errors cluster in biologically adjacent groups rather than in arbitrary pairs. At the same time, the residual confusion between COAD and READ or between STAD and ESCA shows that expression-based discrimination has natural limits in neighboring disease classes.
+
+Fourth, the best-performing classifier is linear. That is a useful practical result. Once the data are centered on a shared high-variance gene space and compressed to 50 PCs, a relatively simple regularized linear decision surface is competitive with or better than more flexible nonlinear alternatives. This improves interpretability, computational efficiency, and deployment simplicity.
+
+Finally, the unsupervised results reinforce the supervised findings rather than contradict them. K-means does not recover cancer labels perfectly, but its ARI and stability are high enough to show that known tumor identities are major organizing principles of the expression manifold.
+
+\section{Limitations}
+This implementation is strong, but it is not exhaustive.
+
+\begin{itemize}
+  \item The final cohort contains 32 cancer types.
+  \item The regression analysis uses a ridge model on latent PC scores rather than a more elaborate full MANOVA framework.
+  \item The classification benchmark is transcriptome-only; integrating mutation, copy-number, methylation, or survival endpoints could reveal additional structure.
+  \item The unsupervised comparison fixes the number of clusters at the number of observed cancer types. That makes comparison interpretable, but it may not reflect the natural number of molecular subgroups.
+\end{itemize}
+
+These are reasonable next-step extensions rather than failures of the present pipeline.
+
+\section{Reproducibility}
+The entire project can be executed through the orchestrator script \texttt{run\_tcga\_pipeline.py}, which calls the modules in the required order:
+
+\begin{enumerate}
+  \item \texttt{load\_tcga.py}
+  \item \texttt{preprocess.py}
+  \item \texttt{pca\_covariance.py}
+  \item \texttt{regression.py}
+  \item \texttt{classification.py}
+  \item \texttt{clustering.py}
+  \item \texttt{plots\_tables.py}
+\end{enumerate}
+
+The project outputs all intermediate and final artifacts into \texttt{artifacts/tcga/}. The report itself is built from those outputs, especially:
+\begin{itemize}
+  \item \texttt{artifacts/tcga/pca\_covariance/},
+  \item \texttt{artifacts/tcga/regression/},
+  \item \texttt{artifacts/tcga/classification/},
+  \item \texttt{artifacts/tcga/clustering/},
+  \item \texttt{artifacts/tcga/report/}.
+\end{itemize}
+
+This structure makes the project auditable: every reported number in this report has a corresponding saved CSV, JSON, or figure artifact.
+
+\section{Conclusion}
+This project successfully implements an integrated multivariate analysis of \tcga\ pan-cancer transcriptomic data at research-report quality. The final pipeline builds a patient-level tumor cohort, constructs shared high-variance molecular feature spaces, and uses them consistently across exploratory, inferential, supervised, and unsupervised analyses. Numerically, the main findings are:
+
+\begin{itemize}
+  \item strong and highly stable low-dimensional transcriptomic structure,
+  \item clinically meaningful but overwhelmingly cancer-type-driven regression signal,
+  \item high-quality multiclass cancer classification led by \bestclf,
+  \item moderate but nontrivial unsupervised recovery of tumor identity led by \bestcluster.
+\end{itemize}
+
+Taken together, these results support the central statistical conclusion of this project: pan-cancer transcriptomic data are rich enough to sustain a coherent multivariate analysis program in which dimension reduction, covariance estimation, regression, classification, and clustering each illuminate a different aspect of the same underlying molecular structure.
+
+\begin{thebibliography}{99}
+
+\bibitem{weinstein2013tcga}
+The Cancer Genome Atlas Research Network.
+\newblock The Cancer Genome Atlas Pan-Cancer analysis project.
+\newblock \emph{Nature Genetics}. 2013;45(10):1113--1120.
+\newblock doi:10.1038/ng.2764.
+
+\bibitem{grossman2016shared}
+Grossman RL, Heath AP, Ferretti V, Varmus HE, Lowy DR, Kibbe WA, Staudt LM.
+\newblock Toward a Shared Vision for Cancer Genomic Data.
+\newblock \emph{New England Journal of Medicine}. 2016;375(12):1109--1112.
+\newblock doi:10.1056/NEJMp1607591.
+
+\bibitem{goldman2020xena}
+Goldman MJ, Craft B, Hastie M, Repe\v{c}ka K, McDade F, Kamath A, et al.
+\newblock Visualizing and interpreting cancer genomics data via the Xena platform.
+\newblock \emph{Nature Biotechnology}. 2020;38(6):675--678.
+\newblock doi:10.1038/s41587-020-0546-8.
+
+\bibitem{liu2018cdr}
+Liu J, Lichtenberg T, Hoadley KA, Poisson LM, Lazar AJ, Cherniack AD, et al.
+\newblock An Integrated TCGA Pan-Cancer Clinical Data Resource to Drive High-Quality Survival Outcome Analytics.
+\newblock \emph{Cell}. 2018;173(2):400--416.e11.
+\newblock doi:10.1016/j.cell.2018.02.052.
+
+\bibitem{hoadley2018cell}
+Hoadley KA, Yau C, Hinoue T, Wolf DM, Lazar AJ, Drill E, et al.
+\newblock Cell-of-Origin Patterns Dominate the Molecular Classification of 10,000 Tumors from 33 Types of Cancer.
+\newblock \emph{Cell}. 2018;173(2):291--304.e6.
+\newblock doi:10.1016/j.cell.2018.03.022.
+
+\end{thebibliography}
+
+\end{document}
